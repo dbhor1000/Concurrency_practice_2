@@ -17,16 +17,34 @@ public class ConcurrentBank {
     }
 
     public boolean transfer(BankAccount transferFrom, BankAccount transferTo, Integer transferAmount) {
-        if(transferFrom.getAccountBalance() < transferAmount){
+        if (transferFrom.getAccountBalance() < transferAmount) {
             return false;
         }
-        synchronized (transferFrom) {
-            synchronized (transferTo){
-                transferFrom.withdraw(transferAmount);
-                transferTo.deposit(transferAmount);
-                return true;
+
+        boolean lockAcquired = false;
+        try {
+            if (transferFrom.lock.tryLock()) {
+                if (transferTo.lock.tryLock()) {
+                    lockAcquired = true;
+                    transferFrom.withdraw(transferAmount);
+                    transferTo.deposit(transferAmount);
+                    return true;
+                }
+            }
+        } finally {
+            if (lockAcquired) {
+                transferTo.lock.unlock();
+                transferFrom.lock.unlock();
+            } else {
+                if (transferFrom.lock.isHeldByCurrentThread()) {
+                    transferFrom.lock.unlock();
+                }
+                if (transferTo.lock.isHeldByCurrentThread()) {
+                    transferTo.lock.unlock();
+                }
             }
         }
+        return false;
     }
 
     public Integer getTotalBalance() {
