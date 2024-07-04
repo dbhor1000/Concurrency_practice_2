@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class ConcurrentBank {
     //Реализуйте класс ConcurrentBank для управления счетами и выполнения переводов между ними.
@@ -17,20 +18,24 @@ public class ConcurrentBank {
     }
 
     public boolean transfer(BankAccount transferFrom, BankAccount transferTo, Integer transferAmount) {
-        if (transferFrom.getAccountBalance() < transferAmount) {
-            return false;
-        }
 
+        int attempts = 0;
         boolean lockAcquired = false;
+
+        while (attempts < 5) {
         try {
-            if (transferFrom.lock.tryLock()) {
-                if (transferTo.lock.tryLock()) {
+            if (transferFrom.lock.tryLock(1000, TimeUnit.MILLISECONDS)) {
+                if (transferTo.lock.tryLock(1000, TimeUnit.MILLISECONDS)) {
                     lockAcquired = true;
-                    transferFrom.withdraw(transferAmount);
+                    if (!transferFrom.withdraw(transferAmount)) {
+                        return false;
+                    }
                     transferTo.deposit(transferAmount);
                     return true;
                 }
             }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         } finally {
             if (lockAcquired) {
                 transferTo.lock.unlock();
@@ -44,6 +49,19 @@ public class ConcurrentBank {
                 }
             }
         }
+
+        attempts++;
+        if (attempts == 5) {
+            System.out.println("Перевод с " + transferFrom.hashCode() + " на " + transferTo.hashCode() + " размером " + transferAmount + " не удался после 5 попыток.");
+        }
+
+        try {
+            Thread.sleep((long) (Math.random() * 1000));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
         return false;
     }
 

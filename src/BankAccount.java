@@ -1,3 +1,4 @@
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class BankAccount {
@@ -39,5 +40,18 @@ public class BankAccount {
         } finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BankAccount that = (BankAccount) o;
+        return Objects.equals(accountBalance, that.accountBalance) && Objects.equals(lock, that.lock);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(accountBalance, lock);
     }
 }
